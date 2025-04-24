@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For currency formatting
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
 import 'authentication.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart';
+import 'map_location_picker.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -95,9 +100,8 @@ class MainAppState extends State<MainApp> {
     setState(() {
       if (_cartProducts.any((p) => p["name"] == product["name"])) {
         _cartProducts.firstWhere(
-              (p) => p["name"] == product["name"],
-            )["quantity"] +=
-            1;
+          (p) => p["name"] == product["name"],
+        )["quantity"] += 1;
       } else {
         product["quantity"] = 1;
         _cartProducts.add(product);
@@ -114,9 +118,8 @@ class MainAppState extends State<MainApp> {
   void _updateQuantity(Map<String, dynamic> product, int newQuantity) {
     setState(() {
       _cartProducts.firstWhere(
-            (p) => p["name"] == product["name"],
-          )["quantity"] =
-          newQuantity;
+        (p) => p["name"] == product["name"],
+      )["quantity"] = newQuantity;
     });
   }
 
@@ -235,14 +238,12 @@ class MainAppState extends State<MainApp> {
     }
 
     // Get top selling categories
-    var sortedCategories =
-        categorySales.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
+    var sortedCategories = categorySales.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     // Get top selling products
-    var sortedProducts =
-        productSales.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
+    var sortedProducts = productSales.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return {
       'totalOrders': _orderHistory.length,
@@ -250,16 +251,14 @@ class MainAppState extends State<MainApp> {
         0.0,
         (sum, order) => sum + order['total'],
       ),
-      'topCategories':
-          sortedCategories
-              .take(3)
-              .map((e) => {'category': e.key, 'sales': e.value})
-              .toList(),
-      'topProducts':
-          sortedProducts
-              .take(5)
-              .map((e) => {'product': e.key, 'sales': e.value})
-              .toList(),
+      'topCategories': sortedCategories
+          .take(3)
+          .map((e) => {'category': e.key, 'sales': e.value})
+          .toList(),
+      'topProducts': sortedProducts
+          .take(5)
+          .map((e) => {'product': e.key, 'sales': e.value})
+          .toList(),
     };
   }
 
@@ -491,112 +490,107 @@ class AppDrawer extends StatelessWidget {
   void _showSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Settings'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  title: Text('Notifications'),
-                  value: true,
-                  onChanged: (value) {},
-                ),
-              ],
+      builder: (context) => AlertDialog(
+        title: Text('Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: Text('Notifications'),
+              value: true,
+              onChanged: (value) {},
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
           ),
+        ],
+      ),
     );
   }
 
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Select Language'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: Text('English'),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  title: Text('العربية'),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+      builder: (context) => AlertDialog(
+        title: Text('Select Language'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text('English'),
+              onTap: () {
+                Navigator.pop(context);
+              },
             ),
-          ),
+            ListTile(
+              title: Text('العربية'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showOrderHistory(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Order History'),
-            content: Container(
-              width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: orderHistory.length,
-                itemBuilder: (context, index) {
-                  final order = orderHistory[index];
-                  return ExpansionTile(
-                    title: Text(
-                      'Order #${index + 1} - ${DateFormat('MMM dd, yyyy').format(order['date'])}',
-                    ),
-                    subtitle: Text(
-                      '\$${order['total'].toStringAsFixed(2)} - ${order['status']}',
-                    ),
-                    children: [
-                      ...order['items']
-                          .map<Widget>(
-                            (item) => ListTile(
-                              title: Text(item['name']),
-                              subtitle: Text(
-                                'Qty: ${item['quantity']} x \$${item['price']}',
-                              ),
-                              trailing:
-                                  order['status'] == 'Delivered'
-                                      ? IconButton(
-                                        icon: Icon(Icons.assignment_return),
-                                        onPressed:
-                                            () => returnItem(order, item),
-                                      )
-                                      : null,
-                            ),
-                          )
-                          .toList(),
-                      if (order['couponUsed'] != null)
-                        ListTile(
-                          title: Text('Coupon Applied: ${order['couponUsed']}'),
-                          trailing: Icon(Icons.discount, color: Colors.green),
+      builder: (context) => AlertDialog(
+        title: Text('Order History'),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: orderHistory.length,
+            itemBuilder: (context, index) {
+              final order = orderHistory[index];
+              return ExpansionTile(
+                title: Text(
+                  'Order #${index + 1} - ${DateFormat('MMM dd, yyyy').format(order['date'])}',
+                ),
+                subtitle: Text(
+                  '\$${order['total'].toStringAsFixed(2)} - ${order['status']}',
+                ),
+                children: [
+                  ...order['items']
+                      .map<Widget>(
+                        (item) => ListTile(
+                          title: Text(item['name']),
+                          subtitle: Text(
+                            'Qty: ${item['quantity']} x \$${item['price']}',
+                          ),
+                          trailing: order['status'] == 'Delivered'
+                              ? IconButton(
+                                  icon: Icon(Icons.assignment_return),
+                                  onPressed: () => returnItem(order, item),
+                                )
+                              : null,
                         ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
-            ],
+                      )
+                      .toList(),
+                  if (order['couponUsed'] != null)
+                    ListTile(
+                      title: Text('Coupon Applied: ${order['couponUsed']}'),
+                      trailing: Icon(Icons.discount, color: Colors.green),
+                    ),
+                ],
+              );
+            },
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -604,167 +598,382 @@ class AppDrawer extends StatelessWidget {
     final stats = salesStatistics;
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Sales Statistics'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total Orders: ${stats['totalOrders']}',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Total Revenue: \$${stats['totalRevenue'].toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-
-                  SizedBox(height: 16),
-                  Text(
-                    'Top Categories:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  ...stats['topCategories']
-                      .map<Widget>(
-                        (cat) => ListTile(
-                          title: Text(cat['category']),
-                          trailing: Text('${cat['sales']} sales'),
-                        ),
-                      )
-                      .toList(),
-
-                  SizedBox(height: 16),
-                  Text(
-                    'Top Products:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  ...stats['topProducts']
-                      .map<Widget>(
-                        (prod) => ListTile(
-                          title: Text(prod['product']),
-                          trailing: Text('${prod['sales']} sold'),
-                        ),
-                      )
-                      .toList(),
-                ],
+      builder: (context) => AlertDialog(
+        title: Text('Sales Statistics'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total Orders: ${stats['totalOrders']}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
+              Text(
+                'Total Revenue: \$${stats['totalRevenue'].toStringAsFixed(2)}',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
+              SizedBox(height: 16),
+              Text(
+                'Top Categories:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...stats['topCategories']
+                  .map<Widget>(
+                    (cat) => ListTile(
+                      title: Text(cat['category']),
+                      trailing: Text('${cat['sales']} sales'),
+                    ),
+                  )
+                  .toList(),
+              SizedBox(height: 16),
+              Text(
+                'Top Products:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...stats['topProducts']
+                  .map<Widget>(
+                    (prod) => ListTile(
+                      title: Text(prod['product']),
+                      trailing: Text('${prod['sales']} sold'),
+                    ),
+                  )
+                  .toList(),
             ],
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
   void _showProductComparison(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Product Comparison'),
-            content: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  DataColumn(label: Text('Feature')),
-                  ...productsToCompare
-                      .map((p) => DataColumn(label: Text(p['name'])))
-                      .toList(),
-                ],
-                rows: [
-                  DataRow(
-                    cells: [
-                      DataCell(Text('Price')),
-                      ...productsToCompare
-                          .map((p) => DataCell(Text('\$${p['price']}')))
-                          .toList(),
-                    ],
-                  ),
-                  DataRow(
-                    cells: [
-                      DataCell(Text('Category')),
-                      ...productsToCompare
-                          .map((p) => DataCell(Text(p['category'])))
-                          .toList(),
-                    ],
-                  ),
-                  DataRow(
-                    cells: [
-                      DataCell(Text('Rating')),
-                      ...productsToCompare
-                          .map(
-                            (p) => DataCell(
-                              Row(
-                                children: List.generate(
-                                  5,
-                                  (i) => Icon(
-                                    i < (p['rating'] ?? 0)
-                                        ? Icons.star
-                                        : Icons.star_border,
-                                    size: 16,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: Text('product comparison'),
             actions: [
               IconButton(
                 icon: Icon(Icons.add),
+                tooltip: 'add product to comparison',
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (context) => ProductsScreen(
-                            products: products,
-                            favoriteProducts: [],
-                            addToFavorites: (p) {},
-                            removeFromFavorites: (p) {},
-                            addToCart: (p) {},
-                            isDarkMode: isDarkMode,
-                            addToComparison: (p) {},
-                          ),
+                      builder: (context) => ProductsScreen(
+                        products: products,
+                        favoriteProducts: [],
+                        addToFavorites: (p) {},
+                        removeFromFavorites: (p) {},
+                        addToCart: (p) {},
+                        isDarkMode: isDarkMode,
+                        addToComparison: (p) {},
+                      ),
                     ),
                   );
                 },
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
             ],
           ),
+          body: _buildComparisonTable(),
+        ),
+      ),
     );
+  }
+
+  Widget _buildComparisonTable() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          // Product Images Row
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: productsToCompare.length,
+              separatorBuilder: (context, index) => SizedBox(width: 16),
+              itemBuilder: (context, index) {
+                final product = productsToCompare[index];
+                return Column(
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: NetworkImage(product['image']),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            icon: Icon(Icons.close, size: 18),
+                            color: Colors.red,
+                            onPressed: () => removeFromComparison(product),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      product['name'],
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          SizedBox(height: 20),
+
+          // Comparison Table
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: DataTable(
+                  columnSpacing: 24,
+                  dataRowHeight: 60,
+                  headingRowHeight: 40,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  columns: [
+                    DataColumn(
+                      label: Text(
+                        'specifications',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...productsToCompare
+                        .map((p) => DataColumn(
+                              label: SizedBox(
+                                width: 120,
+                                child: Text(
+                                  p['name'],
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ],
+                  rows: [
+                    // Price Row
+                    _buildComparisonRow(
+                      title: 'price',
+                      values: productsToCompare
+                          .map((p) => '\$${p['price']}')
+                          .toList(),
+                      icon: Icons.attach_money,
+                    ),
+
+                    // Category Row
+                    _buildComparisonRow(
+                      title: 'category',
+                      values: productsToCompare
+                          .map((p) => p['category'].toString())
+                          .toList(),
+                      icon: Icons.category,
+                    ),
+
+                    // Rating Row
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          Row(
+                            children: [
+                              Icon(Icons.star, color: Colors.amber),
+                              SizedBox(width: 8),
+                              Text('rating'),
+                            ],
+                          ),
+                        ),
+                        ...productsToCompare
+                            .map((p) => DataCell(
+                                  Row(
+                                    children: List.generate(
+                                      5,
+                                      (i) => Icon(
+                                        i < (p['rating'] ?? 0)
+                                            ? Icons.star
+                                            : Icons.star_border,
+                                        size: 20,
+                                        color: Colors.amber,
+                                      ),
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ],
+                    ),
+
+                    // Warranty Row
+                    _buildComparisonRow(
+                      title: 'warranty',
+                      values: productsToCompare
+                          .map((p) => '${p['warranty'] ?? 0} years')
+                          .toList(),
+                      icon: Icons.verified_user,
+                    ),
+
+                    // Color Row
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          Row(
+                            children: [
+                              Icon(Icons.color_lens, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text("colors available"),
+                            ],
+                          ),
+                        ),
+                        ...productsToCompare
+                            .map((p) => DataCell(
+                                  Wrap(
+                                    spacing: 4,
+                                    children: (p['colors'] as List<dynamic>?)
+                                            ?.map((color) => Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color: _parseColor(color),
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                        color: Colors.grey),
+                                                  ),
+                                                ))
+                                            .toList() ??
+                                        [Text('-')],
+                                  ),
+                                ))
+                            .toList(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Action Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  icon: Icon(Icons.shopping_cart),
+                  label: Text('أضف الكل للسلة'),
+                  onPressed: () {
+                    // Add all to cart logic
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                OutlinedButton.icon(
+                  icon: Icon(Icons.delete),
+                  label: Text('مسح المقارنة'),
+                  onPressed: () {
+                    // Clear comparison logic
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildComparisonRow({
+    required String title,
+    required List<String> values,
+    required IconData icon,
+  }) {
+    return DataRow(
+      cells: [
+        DataCell(
+          Row(
+            children: [
+              Icon(icon, size: 20),
+              SizedBox(width: 8),
+              Text(title),
+            ],
+          ),
+        ),
+        ...values
+            .map((value) => DataCell(
+                  Text(value, style: TextStyle(fontSize: 14)),
+                ))
+            .toList(),
+      ],
+    );
+  }
+
+  Color _parseColor(dynamic color) {
+    if (color is String) {
+      switch (color.toLowerCase()) {
+        case 'red':
+          return Colors.red;
+        case 'blue':
+          return Colors.blue;
+        case 'green':
+          return Colors.green;
+        case 'yellow':
+          return Colors.yellow;
+        case 'black':
+          return Colors.black;
+        case 'white':
+          return Colors.white;
+        default:
+          return Colors.grey;
+      }
+    }
+    return Colors.grey;
   }
 
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('About Azir App'),
-            content: Text(
-              'Version 1.0.0\n\nAn e-commerce app for all your shopping needs.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text('About Azir App'),
+        content: Text(
+          'Version 1.0.0\n\nAn e-commerce app for all your shopping needs.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close'),
           ),
+        ],
+      ),
     );
   }
 }
@@ -838,40 +1047,84 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildSpecialOffers() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
           child: Text(
             "Special Offers",
-            style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
         ),
         SizedBox(
-          height: 150,
-          child: ListView.builder(
+          height: 180, // زيادة الارتفاع قليلاً
+          child: ListView.separated(
+            // استخدام ListView.separated بدلاً من builder للتحكم في المسافات
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             itemCount: specialOffers.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
-              return Container(
-                margin: EdgeInsets.symmetric(horizontal: 8),
-                width: 250,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  image: DecorationImage(
-                    image: NetworkImage(
-                      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSSsqhfKsh8tdn5YVM-kdIDds_6BQI90pZh-Q&s',
+              final offer = specialOffers[index];
+              return GestureDetector(
+                // إضافة إمكانية النقر
+                onTap: () {
+                  // يمكنك إضافة action هنا عند النقر على العرض
+                  print('Offer tapped: ${offer["title"]}');
+                },
+                child: Container(
+                  width: 280, // زيادة العرض قليلاً
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                    image: DecorationImage(
+                      image: NetworkImage(
+                        offer["imageUrl"] ?? _getDefaultImageUrl(),
+                      ),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(
+                        Colors.black.withOpacity(0.3),
+                        BlendMode.darken,
+                      ),
                     ),
-                    fit: BoxFit.fill,
                   ),
-                ),
-                child: Center(
-                  child: Text(
-                    specialOffers[index]["title"]!,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      shadows: [Shadow(blurRadius: 10, color: Colors.black)],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          offer["title"] ?? '',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (offer["subtitle"] !=
+                            null) // إضافة subtitle إذا كان متوفراً
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              offer["subtitle"]!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -881,6 +1134,10 @@ class HomeScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _getDefaultImageUrl() {
+    return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQBKemhHAH0bkJXGiojbWxjLv--3xbugJJn7A&s';
   }
 
   Widget _buildCategories() {
@@ -898,23 +1155,22 @@ class HomeScreen extends StatelessWidget {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            itemBuilder:
-                (context, index) => Container(
-                  margin: EdgeInsets.symmetric(horizontal: 8),
-                  width: 100,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(categories[index]["icon"]),
-                      SizedBox(height: 8),
-                      Text(categories[index]["name"]!),
-                    ],
-                  ),
-                ),
+            itemBuilder: (context, index) => Container(
+              margin: EdgeInsets.symmetric(horizontal: 8),
+              width: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(categories[index]["icon"]),
+                  SizedBox(height: 8),
+                  Text(categories[index]["name"]!),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -942,18 +1198,17 @@ class HomeScreen extends StatelessWidget {
             childAspectRatio: 0.8,
           ),
           itemCount: featuredProducts.length,
-          itemBuilder:
-              (context, index) => ProductCard(
-                product: featuredProducts[index],
-                isFavorite: favoriteProducts.any(
-                  (p) => p["name"] == featuredProducts[index]["name"],
-                ),
-                addToFavorites: addToFavorites,
-                removeFromFavorites: removeFromFavorites,
-                addToCart: addToCart,
-                isDarkMode: isDarkMode,
-                addToComparison: addToComparison,
-              ),
+          itemBuilder: (context, index) => ProductCard(
+            product: featuredProducts[index],
+            isFavorite: favoriteProducts.any(
+              (p) => p["name"] == featuredProducts[index]["name"],
+            ),
+            addToFavorites: addToFavorites,
+            removeFromFavorites: removeFromFavorites,
+            addToCart: addToCart,
+            isDarkMode: isDarkMode,
+            addToComparison: addToComparison,
+          ),
         ),
       ],
     );
@@ -985,18 +1240,16 @@ class HomeScreen extends StatelessWidget {
                     SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: selectedCategory,
-                      items:
-                          [
-                                'All',
-                                'Electronics',
-                                'Clothing',
-                                'Household Appliances',
-                              ]
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
+                      items: [
+                        'All',
+                        'Electronics',
+                        'Clothing',
+                        'Household Appliances',
+                      ]
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
                       onChanged: (value) {
                         setState(() {
                           selectedCategory = value!;
@@ -1055,29 +1308,25 @@ class HomeScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder:
-                            (context) => ProductsScreen(
-                              products:
-                                  products.where((product) {
-                                    bool matchesPrice =
-                                        product['price'] >= minPrice &&
-                                        product['price'] <= maxPrice;
-                                    bool matchesCategory =
-                                        selectedCategory == 'All' ||
-                                        product['category'] == selectedCategory;
-                                    bool matchesRating =
-                                        (product['rating'] ?? 0) >= minRating;
-                                    return matchesPrice &&
-                                        matchesCategory &&
-                                        matchesRating;
-                                  }).toList(),
-                              favoriteProducts: favoriteProducts,
-                              addToFavorites: addToFavorites,
-                              removeFromFavorites: removeFromFavorites,
-                              addToCart: addToCart,
-                              isDarkMode: isDarkMode,
-                              addToComparison: addToComparison,
-                            ),
+                        builder: (context) => ProductsScreen(
+                          products: products.where((product) {
+                            bool matchesPrice = product['price'] >= minPrice &&
+                                product['price'] <= maxPrice;
+                            bool matchesCategory = selectedCategory == 'All' ||
+                                product['category'] == selectedCategory;
+                            bool matchesRating =
+                                (product['rating'] ?? 0) >= minRating;
+                            return matchesPrice &&
+                                matchesCategory &&
+                                matchesRating;
+                          }).toList(),
+                          favoriteProducts: favoriteProducts,
+                          addToFavorites: addToFavorites,
+                          removeFromFavorites: removeFromFavorites,
+                          addToCart: addToCart,
+                          isDarkMode: isDarkMode,
+                          addToComparison: addToComparison,
+                        ),
                       ),
                     );
                   },
@@ -1122,16 +1371,15 @@ class ProductCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) => ProductDetailScreen(
-                    product: product,
-                    isFavorite: isFavorite,
-                    addToFavorites: addToFavorites,
-                    removeFromFavorites: removeFromFavorites,
-                    addToCart: addToCart,
-                    isDarkMode: isDarkMode,
-                    addToComparison: addToComparison,
-                  ),
+              builder: (context) => ProductDetailScreen(
+                product: product,
+                isFavorite: isFavorite,
+                addToFavorites: addToFavorites,
+                removeFromFavorites: removeFromFavorites,
+                addToCart: addToCart,
+                isDarkMode: isDarkMode,
+                addToComparison: addToComparison,
+              ),
             ),
           );
         },
@@ -1142,21 +1390,20 @@ class ProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
                 child: Image.network(
                   product["image"]!,
-                  fit: BoxFit.fill,
+                  fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Center(
                       child: CircularProgressIndicator(
-                        value:
-                            loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
                       ),
                     );
                   },
-                  errorBuilder:
-                      (context, error, stackTrace) => Icon(Icons.error),
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(Icons.error),
                 ),
               ),
             ),
@@ -1275,7 +1522,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String _selectedSize = "M";
   int _userRating = 0;
   final TextEditingController _reviewController = TextEditingController();
-  final List<String> _reviews = [];
+  final List<Map<String, dynamic>> _reviews = [];
+  PageController _imageController = PageController();
+  int _currentImageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // إضافة بعض التقييمات الوهمية للعرض
+    _reviews.addAll([
+      {
+        "userName": "Ahmed Mohamed",
+        "userImage": "https://randomuser.me/api/portraits/men/1.jpg",
+        "rating": 5,
+        "text": "Great product! Very satisfied with the quality.",
+        "date": DateTime.now().subtract(Duration(days: 2)),
+      },
+      {
+        "userName": "Sara Ali",
+        "userImage": "https://randomuser.me/api/portraits/women/1.jpg",
+        "rating": 4,
+        "text": "Good product but delivery took longer than expected.",
+        "date": DateTime.now().subtract(Duration(days: 5)),
+      },
+    ]);
+  }
+
+  @override
+  void dispose() {
+    _imageController.dispose();
+    _reviewController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1286,111 +1564,242 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           IconButton(
             icon: Icon(
               widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: widget.isFavorite ? Colors.red : null,
             ),
-            onPressed: () {
-              if (widget.isFavorite) {
-                widget.removeFromFavorites(widget.product);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Removed from favorites")),
-                );
-              } else {
-                widget.addToFavorites(widget.product);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text("Added to favorites")));
-              }
-            },
+            onPressed: _toggleFavorite,
           ),
           if (widget.addToComparison != null)
             IconButton(
               icon: Icon(Icons.compare),
-              onPressed: () {
-                widget.addToComparison!(widget.product);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text("Added to comparison")));
-              },
+              onPressed: _addToCompare,
             ),
+          IconButton(
+            icon: Icon(Icons.share),
+            onPressed: _shareProduct,
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProductImage(),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.product["name"]!,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 15),
-                  Text(
-                    "price: \$${widget.product["price"].toString()}",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xffef0e0e),
-                    ),
-                  ),
-                  SizedBox(height: 19),
-                  Text(
-                    "Description:",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text(widget.product["details"]!),
-                  SizedBox(height: 16),
-                  _buildColorSelector(),
-                  SizedBox(height: 16),
-                  _buildSizeSelector(),
-                  SizedBox(height: 16),
-                  _buildQuantitySelector(),
-                  SizedBox(height: 16),
-                  _buildRatingSection(),
-                  SizedBox(height: 16),
-                  _buildReviewsSection(),
-                  SizedBox(height: 16),
-                  _buildFaqSection(),
-                  SizedBox(height: 16),
-                  _buildAddToCartButton(context),
-                ],
-              ),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _buildProductImages(),
+          ),
+          SliverPadding(
+            padding: EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildProductHeader(),
+                SizedBox(height: 16),
+                _buildPriceSection(),
+                SizedBox(height: 16),
+                _buildRatingSection(),
+                SizedBox(height: 16),
+                _buildColorSizeSelector(),
+                SizedBox(height: 16),
+                _buildQuantitySelector(),
+                SizedBox(height: 24),
+                _buildDescriptionSection(),
+                SizedBox(height: 24),
+                _buildReviewsSection(),
+                SizedBox(height: 24),
+                _buildFaqSection(),
+                SizedBox(height: 32),
+                _buildAddToCartButton(),
+              ]),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildProductImage() {
-    return Container(
-      height: 350,
-      width: double.infinity,
-      child: Image.network(
-        widget.product["image"]!,
-        fit: BoxFit.fill,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value:
-                  loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
+  Widget _buildProductImages() {
+    final List<String> productImages = [
+      widget.product["image"],
+      "https://via.placeholder.com/500?text=Product+Image+2",
+      "https://via.placeholder.com/500?text=Product+Image+3",
+    ];
+
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        SizedBox(
+          height: 350,
+          child: PageView.builder(
+            controller: _imageController,
+            itemCount: productImages.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentImageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: _showFullScreenImage,
+                child: Image.network(
+                  productImages[index],
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(Icons.error, size: 50),
+                ),
+              );
+            },
+          ),
+        ),
+        if (productImages.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                productImages.length,
+                (index) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == index
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                  ),
+                ),
+              ),
             ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) => Icon(Icons.error),
-      ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProductHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.product["name"],
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.category, size: 16, color: Colors.grey),
+            SizedBox(width: 4),
+            Text(
+              widget.product["category"],
+              style: TextStyle(color: Colors.grey),
+            ),
+            Spacer(),
+            Icon(Icons.inventory, size: 16, color: Colors.green),
+            SizedBox(width: 4),
+            Text(
+              "In Stock",
+              style: TextStyle(color: Colors.green),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceSection() {
+    return Row(
+      children: [
+        Text(
+          "\$${widget.product["price"].toString()}",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        SizedBox(width: 16),
+        if (widget.product["originalPrice"] != null)
+          Text(
+            "\$${widget.product["originalPrice"].toString()}",
+            style: TextStyle(
+              fontSize: 20,
+              decoration: TextDecoration.lineThrough,
+              color: Colors.grey,
+            ),
+          ),
+        if (widget.product["discount"] != null)
+          Container(
+            margin: EdgeInsets.only(left: 8),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red[100],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              "${widget.product["discount"]}% OFF",
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRatingSection() {
+    final rating = widget.product["rating"] ?? 0;
+    return Row(
+      children: [
+        Row(
+          children: List.generate(5, (index) {
+            return Icon(
+              index < rating ? Icons.star : Icons.star_border,
+              color: Colors.amber,
+              size: 24,
+            );
+          }),
+        ),
+        SizedBox(width: 8),
+        Text(
+          "$rating/5",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        SizedBox(width: 8),
+        Text(
+          "(12 reviews)",
+          style: TextStyle(color: Colors.grey),
+        ),
+        Spacer(),
+        TextButton(
+          onPressed: _rateProduct,
+          child: Text("Rate Product"),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorSizeSelector() {
+    return Column(
+      children: [
+        _buildColorSelector(),
+        SizedBox(height: 16),
+        _buildSizeSelector(),
+      ],
     );
   }
 
   Widget _buildColorSelector() {
+    final colors = ["Red", "Blue", "Green", "Black", "White"];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1399,26 +1808,53 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children:
-              ["Red", "Blue", "Green", "Black"].map((color) {
-                return ChoiceChip(
-                  label: Text(color),
-                  selected: _selectedColor == color,
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedColor = color;
-                    });
-                  },
-                );
-              }).toList(),
+        SizedBox(
+          height: 50,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: colors.length,
+            itemBuilder: (context, index) {
+              final color = colors[index];
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedColor = color;
+                  });
+                },
+                child: Container(
+                  margin: EdgeInsets.only(right: 12),
+                  padding: EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: _selectedColor == color
+                        ? Border.all(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          )
+                        : null,
+                  ),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _getColorFromString(color),
+                    ),
+                    child: _selectedColor == color
+                        ? Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
   Widget _buildSizeSelector() {
+    final sizes = ["S", "M", "L", "XL", "XXL"];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1427,20 +1863,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children:
-              ["S", "M", "L", "XL"].map((size) {
-                return ChoiceChip(
-                  label: Text(size),
-                  selected: _selectedSize == size,
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedSize = size;
-                    });
-                  },
-                );
-              }).toList(),
+        SizedBox(
+          height: 50,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: sizes.length,
+            itemBuilder: (context, index) {
+              final size = sizes[index];
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedSize = size;
+                  });
+                },
+                child: Container(
+                  margin: EdgeInsets.only(right: 12),
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: _selectedSize == size
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey[200],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    size,
+                    style: TextStyle(
+                      color:
+                          _selectedSize == size ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -1453,52 +1911,101 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           "Quantity:",
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        SizedBox(width: 16),
-        IconButton(
-          icon: Icon(Icons.remove),
-          onPressed: () {
-            setState(() {
-              if (_quantity > 1) _quantity--;
-            });
-          },
-        ),
-        Text(_quantity.toString(), style: TextStyle(fontSize: 18)),
-        IconButton(
-          icon: Icon(Icons.add),
-          onPressed: () {
-            setState(() {
-              _quantity++;
-            });
-          },
+        Spacer(),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.remove),
+                onPressed: () {
+                  setState(() {
+                    if (_quantity > 1) _quantity--;
+                  });
+                },
+              ),
+              Container(
+                width: 40,
+                alignment: Alignment.center,
+                child: Text(
+                  _quantity.toString(),
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () {
+                  setState(() {
+                    _quantity++;
+                  });
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRatingSection() {
+  Widget _buildDescriptionSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Rate this product:",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          "Description",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         SizedBox(height: 8),
-        Row(
-          children: List.generate(5, (index) {
-            return IconButton(
-              icon: Icon(
-                index < _userRating ? Icons.star : Icons.star_border,
-                color: Colors.amber,
-              ),
-              onPressed: () {
-                setState(() {
-                  _userRating = index + 1;
-                });
-              },
-            );
-          }),
+        Text(
+          widget.product["details"] ?? "No description available",
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.5,
+          ),
         ),
+        SizedBox(height: 16),
+        _buildFeaturesList(),
+      ],
+    );
+  }
+
+  Widget _buildFeaturesList() {
+    final features = [
+      "High-quality materials",
+      "Durable construction",
+      "Easy to use",
+      "1-year warranty",
+      "Free shipping on orders over \$100",
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Key Features:",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        SizedBox(height: 8),
+        ...features.map((feature) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(feature)),
+                ],
+              ),
+            )),
       ],
     );
   }
@@ -1507,126 +2014,447 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Customer Reviews:",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        TextField(
-          controller: _reviewController,
-          decoration: InputDecoration(
-            hintText: "Write your review...",
-            suffixIcon: IconButton(
-              icon: Icon(Icons.send),
-              onPressed: () {
-                if (_reviewController.text.isNotEmpty) {
-                  setState(() {
-                    _reviews.add(_reviewController.text);
-                    _reviewController.clear();
-                  });
-                }
-              },
-            ),
-          ),
-        ),
-        SizedBox(height: 8),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: _reviews.length,
-          itemBuilder:
-              (context, index) => ListTile(
-                leading: CircleAvatar(child: Icon(Icons.person)),
-                title: Text("User ${index + 1}"),
-                subtitle: Text(_reviews[index]),
+        Row(
+          children: [
+            Text(
+              "Reviews",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+            Spacer(),
+            TextButton(
+              onPressed: _showAllReviews,
+              child: Text("See All (${_reviews.length})"),
+            ),
+          ],
         ),
+        SizedBox(height: 8),
+        if (_reviews.isEmpty)
+          Text(
+            "No reviews yet. Be the first to review!",
+            style: TextStyle(color: Colors.grey),
+          )
+        else
+          Column(
+            children: [
+              ..._reviews.take(2).map((review) => _buildReviewItem(review)),
+              SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: _addReview,
+                child: Text("Write a Review"),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 48),
+                ),
+              ),
+            ],
+          ),
       ],
+    );
+  }
+
+  Widget _buildReviewItem(Map<String, dynamic> review) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundImage: NetworkImage(review["userImage"] ??
+                    "https://via.placeholder.com/150?text=User"),
+              ),
+              SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    review["userName"] ?? "Anonymous",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: List.generate(5, (index) {
+                      return Icon(
+                        index < (review["rating"] as int)
+                            ? Icons.star
+                            : Icons.star_border,
+                        size: 16,
+                        color: Colors.amber,
+                      );
+                    }),
+                  ),
+                ],
+              ),
+              Spacer(),
+              Text(
+                DateFormat('MMM dd, yyyy').format(review["date"] as DateTime),
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Text(review["text"] as String),
+        ],
+      ),
     );
   }
 
   Widget _buildFaqSection() {
+    final faqs = [
+      {
+        "question": "What is the return policy?",
+        "answer":
+            "You can return this product within 30 days of purchase for a full refund. The product must be in its original condition and packaging.",
+      },
+      {
+        "question": "How long does shipping take?",
+        "answer":
+            "Standard shipping takes 3-5 business days. Express shipping is available for an additional fee and delivers within 1-2 business days.",
+      },
+      {
+        "question": "Is international shipping available?",
+        "answer":
+            "Yes, we ship to most countries worldwide. Additional customs fees may apply depending on your country's regulations.",
+      },
+      {
+        "question": "What payment methods do you accept?",
+        "answer":
+            "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and bank transfers.",
+      },
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Frequently Asked Questions:",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          "Frequently Asked Questions",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         SizedBox(height: 8),
-        ExpansionTile(
-          title: Text("What is the return policy?"),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                "You can return the product within 30 days of purchase.",
-              ),
-            ),
-          ],
-        ),
-        ExpansionTile(
-          title: Text("How long does shipping take?"),
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text("Shipping usually takes 3-5 business days."),
-            ),
-          ],
-        ),
+        ...faqs.map((faq) => _buildFaqItem(faq)),
       ],
     );
   }
 
-  Widget _buildAddToCartButton(BuildContext context) {
-    return Center(
+  Widget _buildFaqItem(Map<String, String> faq) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        title: Text(
+          faq["question"]!,
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Text(faq["answer"]!),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddToCartButton() {
+    return SizedBox(
+      width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          padding: EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
-        onPressed: () {
-          for (int i = 0; i < _quantity; i++) {
-            widget.addToCart(widget.product);
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "Added $_quantity ${widget.product["name"]} to cart",
-              ),
-              action: SnackBarAction(
-                label: "View Cart",
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => CartScreen(
-                            cartProducts: [],
-                            removeFromCart: (product) {},
-                            updateQuantity: (product, quantity) {},
-                            total: 0,
-                            isDarkMode: widget.isDarkMode,
-                            appliedCoupon: null,
-                            applyCoupon: (code) {},
-                            coupons: [],
-                            placeOrder: (order) {},
-                          ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
-        },
+        onPressed: _addToCart,
         child: Text(
-          "ADD TO CART (\$${(widget.product["price"] * _quantity).toStringAsFixed(2)})",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xff0a78f7),
+          "ADD TO CART - \$${(widget.product["price"] * _quantity).toStringAsFixed(2)}",
+          style: TextStyle(fontSize: 18),
+        ),
+      ),
+    );
+  }
+
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case "red":
+        return Colors.red;
+      case "blue":
+        return Colors.blue;
+      case "green":
+        return Colors.green;
+      case "black":
+        return Colors.black;
+      case "white":
+        return Colors.white;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _toggleFavorite() {
+    if (widget.isFavorite) {
+      widget.removeFromFavorites(widget.product);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Removed from favorites"),
+          action: SnackBarAction(
+            label: "UNDO",
+            onPressed: () {
+              widget.addToFavorites(widget.product);
+            },
+          ),
+        ),
+      );
+    } else {
+      widget.addToFavorites(widget.product);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Added to favorites")),
+      );
+    }
+  }
+
+  void _addToCompare() {
+    if (widget.addToComparison != null) {
+      widget.addToComparison!(widget.product);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Added to comparison")),
+      );
+    }
+  }
+
+  void _shareProduct() {
+    Share.share(
+      'Check out this amazing product: ${widget.product["name"]} for \$${widget.product["price"]}\n${widget.product["image"]}',
+    );
+  }
+
+  void _rateProduct() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        int tempRating = _userRating;
+        final reviewController = TextEditingController();
+
+        return AlertDialog(
+          title: Text("Rate this product"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < tempRating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        tempRating = index + 1;
+                      });
+                    },
+                  );
+                }),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: reviewController,
+                decoration: InputDecoration(
+                  hintText: "Write your review (optional)",
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (tempRating > 0) {
+                  setState(() {
+                    _userRating = tempRating;
+                    if (reviewController.text.isNotEmpty) {
+                      _reviews.insert(0, {
+                        "userName": "You",
+                        "userImage": "https://via.placeholder.com/150?text=You",
+                        "rating": tempRating,
+                        "text": reviewController.text,
+                        "date": DateTime.now(),
+                      });
+                    }
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Thanks for your rating!")),
+                  );
+                }
+              },
+              child: Text("Submit"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _addReview() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        int tempRating = 0;
+        final reviewController = TextEditingController();
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Write a Review",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < tempRating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 32,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          tempRating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: reviewController,
+                  decoration: InputDecoration(
+                    hintText: "Share your thoughts about this product...",
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 5,
+                ),
+                SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (tempRating > 0) {
+                        setState(() {
+                          _reviews.insert(0, {
+                            "userName": "You",
+                            "userImage":
+                                "https://via.placeholder.com/150?text=You",
+                            "rating": tempRating,
+                            "text": reviewController.text,
+                            "date": DateTime.now(),
+                          });
+                        });
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Review submitted!")),
+                        );
+                      }
+                    },
+                    child: Text("Submit Review"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAllReviews() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("All Reviews"),
+        content: Container(
+          width: double.maxFinite,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: ListView.builder(
+            itemCount: _reviews.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: _buildReviewItem(_reviews[index]),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addToCart() {
+    final productWithOptions = {
+      ...widget.product,
+      "selectedColor": _selectedColor,
+      "selectedSize": _selectedSize,
+      "quantity": _quantity,
+    };
+
+    widget.addToCart(productWithOptions);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Added to cart successfully!"),
+        action: SnackBarAction(
+          label: "VIEW CART",
+          onPressed: () {
+            // يمكنك إضافة التنقل إلى سلة التسوق هنا
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.network(widget.product["image"]),
+            ),
           ),
         ),
       ),
@@ -1652,111 +2480,108 @@ class FavoritesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Favorites")),
-      body:
-          favoriteProducts.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      "No favorites yet!",
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                    SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => ProductsScreen(
-                                  products: [],
-                                  favoriteProducts: [],
-                                  addToFavorites: (product) {},
-                                  removeFromFavorites: (product) {},
-                                  addToCart: (product) {},
-                                  isDarkMode: isDarkMode,
-                                  addToComparison: addToComparison,
-                                ),
+      body: favoriteProducts.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    "No favorites yet!",
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductsScreen(
+                            products: [],
+                            favoriteProducts: [],
+                            addToFavorites: (product) {},
+                            removeFromFavorites: (product) {},
+                            addToCart: (product) {},
+                            isDarkMode: isDarkMode,
+                            addToComparison: addToComparison,
                           ),
-                        );
-                      },
-                      child: Text("Browse Products"),
-                    ),
-                  ],
-                ),
-              )
-              : ListView.builder(
-                itemCount: favoriteProducts.length,
-                itemBuilder: (context, index) {
-                  final product = favoriteProducts[index];
-                  return ListTile(
-                    leading: Image.network(
-                      product["image"]!,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.fill,
-                    ),
-                    title: Text(product["name"]!),
-                    subtitle: Text("\$${product["price"].toString()}"),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (addToComparison != null)
-                          IconButton(
-                            icon: Icon(Icons.compare),
-                            onPressed: () {
-                              addToComparison!(product);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "${product["name"]} added to comparison!",
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                        ),
+                      );
+                    },
+                    child: Text("Browse Products"),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              itemCount: favoriteProducts.length,
+              itemBuilder: (context, index) {
+                final product = favoriteProducts[index];
+                return ListTile(
+                  leading: Image.network(
+                    product["image"]!,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  ),
+                  title: Text(product["name"]!),
+                  subtitle: Text("\$${product["price"].toString()}"),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (addToComparison != null)
                         IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red),
+                          icon: Icon(Icons.compare),
                           onPressed: () {
-                            removeFromFavorites(product);
+                            addToComparison!(product);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  "${product["name"]} removed from favorites",
-                                ),
-                                action: SnackBarAction(
-                                  label: "UNDO",
-                                  onPressed: () {},
+                                  "${product["name"]} added to comparison!",
                                 ),
                               ),
                             );
                           },
                         ),
-                      ],
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => ProductDetailScreen(
-                                product: product,
-                                isFavorite: true,
-                                addToFavorites: (product) {},
-                                removeFromFavorites: removeFromFavorites,
-                                addToCart: (product) {},
-                                isDarkMode: isDarkMode,
-                                addToComparison: addToComparison,
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          removeFromFavorites(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                "${product["name"]} removed from favorites",
                               ),
+                              action: SnackBarAction(
+                                label: "UNDO",
+                                onPressed: () {},
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductDetailScreen(
+                          product: product,
+                          isFavorite: true,
+                          addToFavorites: (product) {},
+                          removeFromFavorites: removeFromFavorites,
+                          addToCart: (product) {},
+                          isDarkMode: isDarkMode,
+                          addToComparison: addToComparison,
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }
@@ -1793,6 +2618,76 @@ class CartScreenState extends State<CartScreen> {
   final TextEditingController _couponController = TextEditingController();
   bool _showCouponField = false;
 
+  Future<String> _getAddressFromLatLng(LatLng position) async {
+    // هنا يتم استدعاء API لتحويل الإحداثيات إلى عنوان
+    // مثال باستخدام Google Geocoding API
+    try {
+      // Implementation here
+      return "Address"; // Placeholder return
+    } catch (e) {
+      return "Error getting address";
+    }
+  }
+
+  final TextEditingController addressController = TextEditingController();
+  String selectedPaymentMethod = 'بطاقة ائتمان';
+  LatLng? selectedLocation;
+
+  Future<void> _selectLocationOnMap(BuildContext context) async {
+    try {
+      final Location location = Location();
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Location services are disabled')),
+          );
+          return;
+        }
+      }
+
+      PermissionStatus permission = await location.hasPermission();
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+        if (permission == PermissionStatus.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Location permissions are denied')),
+          );
+          return;
+        }
+      }
+
+      LocationData locationData = await location.getLocation();
+      final LatLng initialPosition = LatLng(
+        locationData.latitude ?? 30.0444,
+        locationData.longitude ?? 31.2357,
+      );
+
+      final LatLng? result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MapLocationPicker(
+            initialPosition: initialPosition,
+          ),
+        ),
+      );
+
+      if (result != null) {
+        setState(() {
+          selectedLocation = result;
+          _getAddressFromLatLng(result).then((address) {
+            addressController.text = address;
+          });
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1800,124 +2695,121 @@ class CartScreenState extends State<CartScreen> {
       body: Column(
         children: [
           Expanded(
-            child:
-                widget.cartProducts.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            "Your cart is empty!",
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
-                          SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => ProductsScreen(
-                                        products: [],
-                                        favoriteProducts: [],
-                                        addToFavorites: (product) {},
-                                        removeFromFavorites: (product) {},
-                                        addToCart: (product) {},
-                                        isDarkMode: widget.isDarkMode,
-                                      ),
-                                ),
-                              );
-                            },
-                            child: Text("Browse Products"),
-                          ),
-                        ],
-                      ),
-                    )
-                    : ListView.builder(
-                      itemCount: widget.cartProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = widget.cartProducts[index];
-                        return ListTile(
-                          leading: Image.network(
-                            product["image"]!,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.fill,
-                          ),
-                          title: Text(product["name"]!),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("\$${product["price"].toString()}"),
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.remove),
-                                    onPressed: () {
-                                      if (product["quantity"] > 1) {
-                                        widget.updateQuantity(
-                                          product,
-                                          product["quantity"] - 1,
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  Text(product["quantity"].toString()),
-                                  IconButton(
-                                    icon: Icon(Icons.add),
-                                    onPressed: () {
-                                      widget.updateQuantity(
-                                        product,
-                                        product["quantity"] + 1,
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              widget.removeFromCart(product);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "${product["name"]} removed from cart",
-                                  ),
-                                  action: SnackBarAction(
-                                    label: "UNDO",
-                                    onPressed: () {},
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          onTap: () {
+            child: widget.cartProducts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Your cart is empty!",
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                        SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder:
-                                    (context) => ProductDetailScreen(
-                                      product: product,
-                                      isFavorite: false,
-                                      addToFavorites: (product) {},
-                                      removeFromFavorites: (product) {},
-                                      addToCart: (product) {},
-                                      isDarkMode: widget.isDarkMode,
-                                    ),
+                                builder: (context) => ProductsScreen(
+                                  products: [],
+                                  favoriteProducts: [],
+                                  addToFavorites: (product) {},
+                                  removeFromFavorites: (product) {},
+                                  addToCart: (product) {},
+                                  isDarkMode: widget.isDarkMode,
+                                ),
                               ),
                             );
                           },
-                        );
-                      },
+                          child: Text("Browse Products"),
+                        ),
+                      ],
                     ),
+                  )
+                : ListView.builder(
+                    itemCount: widget.cartProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = widget.cartProducts[index];
+                      return ListTile(
+                        leading: Image.network(
+                          product["image"]!,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                        title: Text(product["name"]!),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("\$${product["price"].toString()}"),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.remove),
+                                  onPressed: () {
+                                    if (product["quantity"] > 1) {
+                                      widget.updateQuantity(
+                                        product,
+                                        product["quantity"] - 1,
+                                      );
+                                    }
+                                  },
+                                ),
+                                Text(product["quantity"].toString()),
+                                IconButton(
+                                  icon: Icon(Icons.add),
+                                  onPressed: () {
+                                    widget.updateQuantity(
+                                      product,
+                                      product["quantity"] + 1,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () {
+                            widget.removeFromCart(product);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "${product["name"]} removed from cart",
+                                ),
+                                action: SnackBarAction(
+                                  label: "UNDO",
+                                  onPressed: () {},
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProductDetailScreen(
+                                product: product,
+                                isFavorite: false,
+                                addToFavorites: (product) {},
+                                removeFromFavorites: (product) {},
+                                addToCart: (product) {},
+                                isDarkMode: widget.isDarkMode,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
           _buildCheckoutSection(context),
         ],
@@ -2070,135 +2962,144 @@ class CartScreenState extends State<CartScreen> {
 
   void _showCheckoutDialog(BuildContext context, double total) {
     final TextEditingController nameController = TextEditingController();
-    final TextEditingController addressController = TextEditingController();
-    String selectedPaymentMethod = 'Credit Card';
+    String selectedPaymentMethod = 'credit card';
+    LatLng? selectedLocation;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "complete order",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: "full name",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: addressController,
+                decoration: InputDecoration(
+                  labelText: "delivery address",
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.map),
+                    onPressed: () => _selectLocationOnMap(context),
+                  ),
+                ),
+                readOnly: true,
+                onTap: () => _selectLocationOnMap(context),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "click on the map icon to choose the location",
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedPaymentMethod,
+                items: ['credit card', 'paypal', 'cash on delivery']
+                    .map(
+                      (e) => DropdownMenuItem(value: e, child: Text(e)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  selectedPaymentMethod = value!;
+                },
+                decoration: InputDecoration(
+                  labelText: "payment method",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Text("total:", style: TextStyle(fontSize: 18)),
                   Text(
-                    "Checkout",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 16),
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: "Full Name",
-                      border: OutlineInputBorder(),
+                    "${total.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
                     ),
-                  ),
-                  SizedBox(height: 16),
-                  TextField(
-                    controller: addressController,
-                    decoration: InputDecoration(
-                      labelText: "Shipping Address",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedPaymentMethod,
-                    items:
-                        ['Credit Card', 'PayPal', 'Cash on Delivery']
-                            .map(
-                              (e) => DropdownMenuItem(value: e, child: Text(e)),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      selectedPaymentMethod = value!;
-                    },
-                    decoration: InputDecoration(
-                      labelText: "Payment Method",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Total:", style: TextStyle(fontSize: 18)),
-                      Text(
-                        "\$${total.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () {
-                      if (nameController.text.isNotEmpty &&
-                          addressController.text.isNotEmpty) {
-                        widget.placeOrder({
-                          'name': nameController.text,
-                          'address': addressController.text,
-                          'paymentMethod': selectedPaymentMethod,
-                        });
-                        Navigator.pop(context);
-                        _showOrderConfirmation(context);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Please fill all fields")),
-                        );
-                      }
-                    },
-                    child: Text("PLACE ORDER"),
                   ),
                 ],
               ),
-            ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  if (nameController.text.isNotEmpty &&
+                      addressController.text.isNotEmpty) {
+                    widget.placeOrder({
+                      'name': nameController.text,
+                      'address': addressController.text,
+                      'paymentMethod': selectedPaymentMethod,
+                      'location': selectedLocation?.toJson(),
+                    });
+                    Navigator.pop(context);
+                    _showOrderConfirmation(context);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("please fill all fields")),
+                    );
+                  }
+                },
+                child: Text("confirm order"),
+              ),
+            ],
           ),
+        ),
+      ),
     );
   }
 
   void _showOrderConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Order Confirmed!"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 64),
-                SizedBox(height: 16),
-                Text("Your order has been placed successfully."),
-                SizedBox(height: 8),
-                Text(
-                  "Total: \$${widget.total.toStringAsFixed(2)}",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
+      builder: (context) => AlertDialog(
+        title: Text("order confirmed!"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 64),
+            SizedBox(height: 16),
+            Text("your order has been placed successfully."),
+            SizedBox(height: 8),
+            Text(
+              "Total: \$${widget.total.toStringAsFixed(2)}",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                child: Text("Back to Home"),
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
+            child: Text("back to home"),
           ),
+        ],
+      ),
     );
   }
 }
@@ -2237,22 +3138,17 @@ class ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredProducts =
-        widget.products.where((product) {
-          final matchesSearch = product["name"].toLowerCase().contains(
+    final filteredProducts = widget.products.where((product) {
+      final matchesSearch = product["name"].toLowerCase().contains(
             _searchQuery.toLowerCase(),
           );
-          final matchesCategory =
-              _selectedCategory == "All" ||
-              product["category"] == _selectedCategory;
-          final matchesPrice =
-              product["price"] >= _minPrice && product["price"] <= _maxPrice;
-          final matchesRating = (product["rating"] ?? 0) >= _minRating;
-          return matchesSearch &&
-              matchesCategory &&
-              matchesPrice &&
-              matchesRating;
-        }).toList();
+      final matchesCategory = _selectedCategory == "All" ||
+          product["category"] == _selectedCategory;
+      final matchesPrice =
+          product["price"] >= _minPrice && product["price"] <= _maxPrice;
+      final matchesRating = (product["rating"] ?? 0) >= _minRating;
+      return matchesSearch && matchesCategory && matchesPrice && matchesRating;
+    }).toList();
 
     // Apply sorting
     switch (_sortOption) {
@@ -2272,7 +3168,7 @@ class ProductsScreenState extends State<ProductsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Products"),
+        title: Text("products"),
         actions: [
           IconButton(
             icon: Icon(Icons.search),
@@ -2290,7 +3186,7 @@ class ProductsScreenState extends State<ProductsScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               decoration: InputDecoration(
-                hintText: "Search products...",
+                    hintText: "search products...",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -2356,57 +3252,54 @@ class ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           Expanded(
-            child:
-                filteredProducts.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            "No products found",
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
-                          SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _searchQuery = "";
-                                _selectedCategory = "All";
-                                _minPrice = 0;
-                                _maxPrice = 1000;
-                                _minRating = 0;
-                              });
-                            },
-                            child: Text("Reset Filters"),
-                          ),
-                        ],
-                      ),
-                    )
-                    : GridView.builder(
-                      padding: EdgeInsets.all(10),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 0.8,
-                      ),
-                      itemCount: filteredProducts.length,
-                      itemBuilder:
-                          (context, index) => ProductCard(
-                            product: filteredProducts[index],
-                            isFavorite: widget.favoriteProducts.any(
-                              (p) =>
-                                  p["name"] == filteredProducts[index]["name"],
-                            ),
-                            addToFavorites: widget.addToFavorites,
-                            removeFromFavorites: widget.removeFromFavorites,
-                            addToCart: widget.addToCart,
-                            isDarkMode: widget.isDarkMode,
-                            addToComparison: widget.addToComparison,
-                          ),
+            child: filteredProducts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          "No products found",
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                        SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _searchQuery = "";
+                              _selectedCategory = "All";
+                              _minPrice = 0;
+                              _maxPrice = 1000;
+                              _minRating = 0;
+                            });
+                          },
+                          child: Text("Reset Filters"),
+                        ),
+                      ],
                     ),
+                  )
+                : GridView.builder(
+                    padding: EdgeInsets.all(10),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.8,
+                    ),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, index) => ProductCard(
+                      product: filteredProducts[index],
+                      isFavorite: widget.favoriteProducts.any(
+                        (p) => p["name"] == filteredProducts[index]["name"],
+                      ),
+                      addToFavorites: widget.addToFavorites,
+                      removeFromFavorites: widget.removeFromFavorites,
+                      addToCart: widget.addToCart,
+                      isDarkMode: widget.isDarkMode,
+                      addToComparison: widget.addToComparison,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -2439,18 +3332,16 @@ class ProductsScreenState extends State<ProductsScreen> {
                     SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _selectedCategory,
-                      items:
-                          [
-                                'All',
-                                'Electronics',
-                                'Clothing',
-                                'Household Appliances',
-                              ]
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
+                      items: [
+                        'All',
+                        'Electronics',
+                        'Clothing',
+                        'Household Appliances',
+                      ]
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
                       onChanged: (value) {
                         setState(() {
                           _selectedCategory = value!;
@@ -2519,70 +3410,69 @@ class ProductsScreenState extends State<ProductsScreen> {
   void _showSortDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Sort By"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile(
-                  title: Text("Default"),
-                  value: "Default",
-                  groupValue: _sortOption,
-                  onChanged: (value) {
-                    setState(() {
-                      _sortOption = value.toString();
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                RadioListTile(
-                  title: Text("Price: Low to High"),
-                  value: "Price: Low to High",
-                  groupValue: _sortOption,
-                  onChanged: (value) {
-                    setState(() {
-                      _sortOption = value.toString();
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                RadioListTile(
-                  title: Text("Price: High to Low"),
-                  value: "Price: High to Low",
-                  groupValue: _sortOption,
-                  onChanged: (value) {
-                    setState(() {
-                      _sortOption = value.toString();
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                RadioListTile(
-                  title: Text("Name: A-Z"),
-                  value: "Name: A-Z",
-                  groupValue: _sortOption,
-                  onChanged: (value) {
-                    setState(() {
-                      _sortOption = value.toString();
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-                RadioListTile(
-                  title: Text("Name: Z-A"),
-                  value: "Name: Z-A",
-                  groupValue: _sortOption,
-                  onChanged: (value) {
-                    setState(() {
-                      _sortOption = value.toString();
-                    });
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+      builder: (context) => AlertDialog(
+        title: Text("Sort By"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile(
+              title: Text("Default"),
+              value: "Default",
+              groupValue: _sortOption,
+              onChanged: (value) {
+                setState(() {
+                  _sortOption = value.toString();
+                });
+                Navigator.pop(context);
+              },
             ),
-          ),
+            RadioListTile(
+              title: Text("Price: Low to High"),
+              value: "Price: Low to High",
+              groupValue: _sortOption,
+              onChanged: (value) {
+                setState(() {
+                  _sortOption = value.toString();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile(
+              title: Text("Price: High to Low"),
+              value: "Price: High to Low",
+              groupValue: _sortOption,
+              onChanged: (value) {
+                setState(() {
+                  _sortOption = value.toString();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile(
+              title: Text("Name: A-Z"),
+              value: "Name: A-Z",
+              groupValue: _sortOption,
+              onChanged: (value) {
+                setState(() {
+                  _sortOption = value.toString();
+                });
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile(
+              title: Text("Name: Z-A"),
+              value: "Name: Z-A",
+              groupValue: _sortOption,
+              onChanged: (value) {
+                setState(() {
+                  _sortOption = value.toString();
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2687,24 +3577,23 @@ class ProfileScreen extends StatelessWidget {
   void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Logout"),
-            content: Text("Are you sure you want to logout?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () {
-                  // Perform logout
-                  Navigator.pop(context);
-                },
-                child: Text("Logout", style: TextStyle(color: Colors.red)),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text("Logout"),
+        content: Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel"),
           ),
+          TextButton(
+            onPressed: () {
+              // Perform logout
+              Navigator.pop(context);
+            },
+            child: Text("Logout", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2851,11 +3740,13 @@ final List<Map<String, dynamic>> specialOffers = [
   },
   {
     "title": "Buy 1 Get 1 Free",
-    "image": "https://m.media-amazon.com/images/I/61DO3csJh+L._AC_SY500_.jpg",
+    "image":
+        "https://encrypted-tbn0.gstatc.com/images?q=tbn:ANd9GcQBKemhHAH0bkJXGiojbWxjLv--3xbugJJn7A&s",
   },
   {
     "title": "Free Shipping on Orders Over \$100",
-    "image": "https://m.media-amazon.com/images/I/61DO3csJh+L._AC_SY500_.jpg",
+    "image":
+        "data:image/jpeg;base64,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",
   },
 ];
 
@@ -2868,7 +3759,7 @@ final List<Map<String, dynamic>> categories = [
 
 final List<Map<String, dynamic>> featuredProducts = [
   {
-    "name": "Samsung 50 Inch TV Crystal Processor 4K LED",
+    "name": "SAMSUNG 50 Inch TV Crystal Processor 4K LED",
     "image": "https://m.media-amazon.com/images/I/61mSsqaxrHL._AC_SX522_.jpg",
     "price": 59.99,
     "category": "Electronics",
