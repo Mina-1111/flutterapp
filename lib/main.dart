@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart'; // For currency formatting
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
@@ -6,9 +8,10 @@ import 'authentication.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'map_location_picker.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
   runApp(const MyApp());
 }
 
@@ -26,7 +29,25 @@ class MyApp extends StatelessWidget {
         hintColor: Colors.orange,
         fontFamily: 'Roboto',
       ),
-      home: const Authentication(),
+      home: Builder(
+        builder: (context) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Initialize after first frame
+            SharedPreferences.getInstance().then((prefs) {
+              print('SharedPreferences initialized successfully');
+            }).catchError((error) {
+              print('Error initializing SharedPreferences: $error');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Error loading preferences. Some features may not work.'),
+                ),
+              );
+            });
+          });
+          return const Authentication();
+        },
+      ),
     );
   }
 }
@@ -38,9 +59,166 @@ class MainApp extends StatefulWidget {
   MainAppState createState() => MainAppState();
 }
 
+// Add new ChatSupportScreen
+class ChatSupportScreen extends StatefulWidget {
+  @override
+  _ChatSupportScreenState createState() => _ChatSupportScreenState();
+}
+
+class _ChatSupportScreenState extends State<ChatSupportScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final List<Map<String, dynamic>> _messages = [
+    {
+      'text': 'Hello! I\'m Azir AI assistant. How can I help you today?',
+      'isUser': false,
+      'time': DateTime.now().subtract(Duration(minutes: 2)),
+    }
+  ];
+
+  void _sendMessage() {
+    if (_messageController.text.isEmpty) return;
+    
+    setState(() {
+      _messages.add({
+        'text': _messageController.text,
+        'isUser': true,
+        'time': DateTime.now(),
+      });
+    });
+    
+    // Simulate AI response after a delay
+    Future.delayed(Duration(seconds: 1), () {
+      setState(() {
+        _messages.add({
+          'text': _getAIResponse(_messageController.text),
+          'isUser': false,
+          'time': DateTime.now(),
+        });
+      });
+    });
+    
+    _messageController.clear();
+  }
+
+  String _getAIResponse(String message) {
+    // In a real app, this would call your AI chat API
+    // Simple keyword-based responses for demo
+    message = message.toLowerCase();
+    
+    if (message.contains('order') || message.contains('track')) {
+      return 'You can track your orders in the "Order History" section of the app.';
+    } else if (message.contains('return') || message.contains('refund')) {
+      return 'To initiate a return, go to your order history, select the item, and tap "Return Item".';
+    } else if (message.contains('price') || message.contains('cost')) {
+      return 'Product prices are listed on each product page. We also offer price matching on select items.';
+    } else if (message.contains('delivery') || message.contains('shipping')) {
+      return 'Standard delivery takes 3-5 business days. Express options are available at checkout.';
+    } else {
+      return 'I understand you\'re asking about "$message". For more specific help, please contact our support team.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('AI Support Chat')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              reverse: true,
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[_messages.length - 1 - index];
+                return ChatBubble(
+                  text: msg['text'],
+                  isUser: msg['isUser'],
+                  time: msg['time'],
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type your message...',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: _sendMessage,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Add ChatBubble widget
+class ChatBubble extends StatelessWidget {
+  final String text;
+  final bool isUser;
+  final DateTime time;
+
+  const ChatBubble({
+    required this.text,
+    required this.isUser,
+    required this.time,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isUser 
+            ? Theme.of(context).primaryColor 
+            : Colors.grey[300],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              text,
+              style: TextStyle(
+                color: isUser ? Colors.white : Colors.black,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              DateFormat('hh:mm a').format(time),
+              style: TextStyle(
+                color: isUser ? Colors.white70 : Colors.grey[600],
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class MainAppState extends State<MainApp> {
+  
   int _selectedIndex = 0;
   bool _isDarkMode = false;
+  String _selectedLanguage = 'English';
   List<Map<String, dynamic>> _favoriteProducts = [];
   List<Map<String, dynamic>> _cartProducts = [];
   List<Map<String, dynamic>> _orderHistory = [];
@@ -69,6 +247,91 @@ class MainAppState extends State<MainApp> {
     },
   ];
   String? _appliedCoupon;
+  SharedPreferences? _prefs;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Delay initialization to avoid channel errors
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _initPrefs();
+      }
+    });
+  }
+
+  Future<void> _initPrefs() async {
+    if (_isInitialized) return;
+
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        await _loadPreferences();
+        _isInitialized = true;
+      }
+    } catch (e) {
+      print('Error initializing preferences: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error loading preferences. Using default settings.'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadPreferences() async {
+    if (_prefs == null) return;
+
+    try {
+      setState(() {
+        _isDarkMode = _prefs!.getBool('isDarkMode') ?? false;
+        _selectedLanguage = _prefs!.getString('language') ?? 'English';
+
+        final favoritesJson = _prefs!.getStringList('favorites') ?? [];
+        _favoriteProducts = favoritesJson
+            .map((json) => Map<String, dynamic>.from(jsonDecode(json)))
+            .toList();
+
+        final cartJson = _prefs!.getStringList('cart') ?? [];
+        _cartProducts = cartJson
+            .map((json) => Map<String, dynamic>.from(jsonDecode(json)))
+            .toList();
+
+        final historyJson = _prefs!.getStringList('orderHistory') ?? [];
+        _orderHistory = historyJson
+            .map((json) => Map<String, dynamic>.from(jsonDecode(json)))
+            .toList();
+      });
+    } catch (e) {
+      print('Error loading preferences: $e');
+    }
+  }
+
+  Future<void> _savePreferences() async {
+    if (_prefs == null) return;
+
+    try {
+      await _prefs!.setBool('isDarkMode', _isDarkMode);
+      await _prefs!.setString('language', _selectedLanguage);
+
+      final favoritesJson =
+          _favoriteProducts.map((product) => jsonEncode(product)).toList();
+      await _prefs!.setStringList('favorites', favoritesJson);
+
+      final cartJson =
+          _cartProducts.map((product) => jsonEncode(product)).toList();
+      await _prefs!.setStringList('cart', cartJson);
+
+      final historyJson =
+          _orderHistory.map((order) => jsonEncode(order)).toList();
+      await _prefs!.setStringList('orderHistory', historyJson);
+    } catch (e) {
+      print('Error saving preferences: $e');
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -80,6 +343,14 @@ class MainAppState extends State<MainApp> {
     setState(() {
       _isDarkMode = !_isDarkMode;
     });
+    _savePreferences();
+  }
+
+  void _setLanguage(String language) {
+    setState(() {
+      _selectedLanguage = language;
+    });
+    _savePreferences();
   }
 
   void _addToFavorites(Map<String, dynamic> product) {
@@ -87,6 +358,7 @@ class MainAppState extends State<MainApp> {
       setState(() {
         _favoriteProducts.add(product);
       });
+      _savePreferences();
     }
   }
 
@@ -94,6 +366,7 @@ class MainAppState extends State<MainApp> {
     setState(() {
       _favoriteProducts.removeWhere((p) => p["name"] == product["name"]);
     });
+    _savePreferences();
   }
 
   void _addToCart(Map<String, dynamic> product) {
@@ -107,12 +380,14 @@ class MainAppState extends State<MainApp> {
         _cartProducts.add(product);
       }
     });
+    _savePreferences();
   }
 
   void _removeFromCart(Map<String, dynamic> product) {
     setState(() {
       _cartProducts.removeWhere((p) => p["name"] == product["name"]);
     });
+    _savePreferences();
   }
 
   void _updateQuantity(Map<String, dynamic> product, int newQuantity) {
@@ -121,6 +396,7 @@ class MainAppState extends State<MainApp> {
         (p) => p["name"] == product["name"],
       )["quantity"] = newQuantity;
     });
+    _savePreferences();
   }
 
   double _calculateTotal() {
@@ -147,15 +423,15 @@ class MainAppState extends State<MainApp> {
     setState(() {
       _orderHistory.add({
         ...orderDetails,
-        'date': DateTime.now(),
+        'date': DateTime.now().toIso8601String(),
         'items': List.from(_cartProducts),
         'total': _calculateTotal(),
         'status': 'Processing',
-        'couponUsed': _appliedCoupon,
       });
       _cartProducts.clear();
       _appliedCoupon = null;
     });
+    _savePreferences();
   }
 
   void _returnItem(Map<String, dynamic> order, Map<String, dynamic> item) {
@@ -337,6 +613,8 @@ class MainAppState extends State<MainApp> {
           salesStatistics: _getSalesStatistics(),
           productsToCompare: _productsToCompare,
           removeFromComparison: _removeFromComparison,
+          setLanguage: _setLanguage,
+          selectedLanguage: _selectedLanguage,
         ),
       ),
     );
@@ -380,6 +658,133 @@ class MainAppState extends State<MainApp> {
     );
   }
 }
+class ShoppingAssistantScreen extends StatefulWidget {
+  @override
+  _ShoppingAssistantScreenState createState() => _ShoppingAssistantScreenState();
+}
+
+class _ShoppingAssistantScreenState extends State<ShoppingAssistantScreen> {
+  int _currentStep = 0;
+  double _budget = 500;
+  String _usage = '';
+  List<String> _preferences = [];
+  List<Map<String, dynamic>> _recommendedProducts = [];
+
+  final List<String> _usageOptions = [
+    'Daily Usage',
+    'Professional Usage',
+    'Gaming and Entertainment',
+    'Office Work',
+    'Graphic Design',
+  ];
+
+  final List<String> _preferenceOptions = [
+    'Popular Brand',
+    'Best Performance',
+    'Lowest Price',
+    'Highest Rating',
+    'High Specifications',
+  ];
+
+  void _getRecommendations() {
+    // هنا سيتم تحليل المدخلات وعرض المنتجات المناسبة
+    setState(() {
+      _recommendedProducts = products.where((product) {
+        bool matchesBudget = product['price'] <= _budget;
+        bool matchesUsage = _usage.isEmpty || 
+            (product['description']?.contains(_usage) ?? false);
+        bool matchesPreferences = _preferences.isEmpty || 
+            _preferences.any((pref) => product['description']?.contains(pref) ?? false);
+        
+        return matchesBudget && matchesUsage && matchesPreferences;
+      }).toList();
+      
+      _currentStep = 3; // انتقل لخطوة النتائج
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Shopping Assistant')),
+      body: Stepper(
+        currentStep: _currentStep,
+        onStepContinue: () {
+          if (_currentStep < 2) {
+            setState(() => _currentStep += 1);
+          } else if (_currentStep == 2) {
+            _getRecommendations();
+          }
+        },
+        onStepCancel: () {
+          if (_currentStep > 0) {
+            setState(() => _currentStep -= 1);
+          }
+        },
+        steps: [
+          Step(
+            title: Text('Budget'),
+            content: Column(
+              children: [
+                Text('Set your budget: ${_budget.round()}'),
+                Slider(
+                  value: _budget,
+                  min: 100,
+                  max: 5000,
+                  divisions: 49,
+                  label: _budget.round().toString(),
+                  onChanged: (value) => setState(() => _budget = value),
+                ),
+              ],
+            ),
+          ),
+          Step(
+            title: Text('Required Usage'),
+            content: Column(
+              children: _usageOptions.map((usage) => RadioListTile(
+                title: Text(usage),
+                value: usage,
+                groupValue: _usage,
+                onChanged: (value) => setState(() => _usage = value.toString()),
+              )).toList(),
+            ),
+          ),
+          Step(
+            title: Text('Preferences'),
+            content: Column(
+              children: _preferenceOptions.map((pref) => CheckboxListTile(
+                title: Text(pref),
+                value: _preferences.contains(pref),
+                onChanged: (checked) => setState(() {
+                  if (checked!) {
+                    _preferences.add(pref);
+                  } else {
+                    _preferences.remove(pref);
+                  }
+                }),
+              )).toList(),
+            ),
+          ),
+          Step(
+              title: Text('Results'),
+            content: _recommendedProducts.isEmpty
+                ? Text('No products match your choices')
+                : Column(
+                    children: _recommendedProducts.take(5).map((product) => ProductCard(
+                      product: product,
+                      isFavorite: false,
+                      addToFavorites: (p) {},
+                      removeFromFavorites: (p) {},
+                      addToCart: (p) {},
+                      isDarkMode: false,
+                    )).toList(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AppDrawer extends StatelessWidget {
   final bool isDarkMode;
@@ -389,8 +794,10 @@ class AppDrawer extends StatelessWidget {
   final Map<String, dynamic> salesStatistics;
   final List<Map<String, dynamic>> productsToCompare;
   final Function(Map<String, dynamic>) removeFromComparison;
+  final Function(String) setLanguage;
+  final String selectedLanguage;
 
-  const AppDrawer({
+  AppDrawer({
     required this.isDarkMode,
     required this.toggleDarkMode,
     required this.orderHistory,
@@ -398,6 +805,8 @@ class AppDrawer extends StatelessWidget {
     required this.salesStatistics,
     required this.productsToCompare,
     required this.removeFromComparison,
+    required this.setLanguage,
+    required this.selectedLanguage,
     Key? key,
   }) : super(key: key);
 
@@ -434,6 +843,17 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
+  leading: Icon(Icons.chat),
+  title: Text('AI Support'),
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ChatSupportScreen()),
+    );
+  },
+),
+          ListTile(
             leading: Icon(Icons.language),
             title: Text('Language'),
             onTap: () {
@@ -441,6 +861,17 @@ class AppDrawer extends StatelessWidget {
               _showLanguageDialog(context);
             },
           ),
+          ListTile(
+  leading: Icon(Icons.shopping_basket),
+  title: Text('Shopping Assistant'),
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ShoppingAssistantScreen()),
+    );
+  },
+),
           ListTile(
             leading: Icon(Icons.brightness_6),
             title: Text(isDarkMode ? 'Light Mode' : 'Dark Mode'),
@@ -513,29 +944,72 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _showLanguageDialog(BuildContext context) {
+    String tempLanguage = selectedLanguage;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text('English'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: Text('العربية'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Select Language'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: Text('English'),
+                    value: 'English',
+                    groupValue: tempLanguage,
+                    onChanged: (value) {
+                      setState(() {
+                        tempLanguage = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: Text('العربية'),
+                    value: 'Arabic',
+                    groupValue: tempLanguage,
+                    onChanged: (value) {
+                      setState(() {
+                        tempLanguage = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setLanguage(tempLanguage);
+                    _applyLanguage(context);
+                    Navigator.pop(context);
+                  },
+                  child: Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
+  }
+
+  void _applyLanguage(BuildContext context) {
+    if (selectedLanguage == 'Arabic') {
+      print('تم تغيير اللغة إلى العربية');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم تغيير اللغة إلى العربية')),
+      );
+    } else {
+      print('Language changed to English');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Language changed to English')),
+      );
+    }
   }
 
   void _showOrderHistory(BuildContext context) {
@@ -552,7 +1026,7 @@ class AppDrawer extends StatelessWidget {
               final order = orderHistory[index];
               return ExpansionTile(
                 title: Text(
-                  'Order #${index + 1} - ${DateFormat('MMM dd, yyyy').format(order['date'])}',
+                  'Order #${index + 1} - ${DateFormat('MMM dd, yyyy').format(DateTime.parse(order['date']))}',
                 ),
                 subtitle: Text(
                   '\$${order['total'].toStringAsFixed(2)} - ${order['status']}',
@@ -3186,7 +3660,7 @@ class ProductsScreenState extends State<ProductsScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               decoration: InputDecoration(
-                    hintText: "search products...",
+                hintText: "search products...",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -3477,51 +3951,169 @@ class ProductsScreenState extends State<ProductsScreen> {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
+  @override
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _addressController;
+  File? _profileImage;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with dummy data (replace with actual user data)
+    _nameController = TextEditingController(text: "John Doe");
+    _emailController = TextEditingController(text: "john.doe@example.com");
+    _phoneController = TextEditingController(text: "+1 234 567 890");
+    _addressController =
+        TextEditingController(text: "123 Main St, City, Country");
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Profile")),
+      appBar: AppBar(
+        title: Text("Profile"),
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            onPressed: () {
+              if (_isEditing) {
+                if (_formKey.currentState!.validate()) {
+                  // Save changes logic here
+                  setState(() {
+                    _isEditing = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Profile updated successfully")),
+                  );
+                }
+              } else {
+                setState(() {
+                  _isEditing = true;
+                });
+              }
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildProfileHeader(),
-            _buildProfileDetails(),
-            _buildProfileActions(context),
-          ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildProfileHeader(),
+              _buildProfileDetails(),
+              _buildProfileActions(context),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildProfileHeader() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: NetworkImage("https://via.placeholder.com/150"),
-          ),
-          SizedBox(height: 16),
-          Text(
-            "John Doe",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+    return GestureDetector(
+      onTap: _isEditing ? _pickImage : null,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: _profileImage != null
+                      ? FileImage(_profileImage!)
+                      : NetworkImage("https://via.placeholder.com/150")
+                          as ImageProvider,
+                ),
+                if (_isEditing)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child:
+                          Icon(Icons.camera_alt, size: 20, color: Colors.blue),
+                    ),
+                  ),
+              ],
             ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            "john.doe@example.com",
-            style: TextStyle(fontSize: 16, color: Colors.white70),
-          ),
-        ],
+            SizedBox(height: 16),
+            _isEditing
+                ? TextFormField(
+                    controller: _nameController,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      errorBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.red),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
+                  )
+                : Text(
+                    _nameController.text,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+            SizedBox(height: 8),
+            _isEditing
+                ? TextFormField(
+                    controller: _emailController,
+                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      errorBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.red),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter your email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Please enter a valid email';
+                      }
+                      return null;
+                    },
+                  )
+                : Text(
+                    _emailController.text,
+                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                  ),
+          ],
+        ),
       ),
     );
   }
@@ -3531,11 +4123,30 @@ class ProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          ListTile(leading: Icon(Icons.phone), title: Text("+1 234 567 890")),
+          _buildEditableListTile(
+            icon: Icons.phone,
+            controller: _phoneController,
+            label: "Phone",
+            isEditing: _isEditing,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your phone number';
+              }
+              return null;
+            },
+          ),
           Divider(),
-          ListTile(
-            leading: Icon(Icons.location_on),
-            title: Text("123 Main St, City, Country"),
+          _buildEditableListTile(
+            icon: Icons.location_on,
+            controller: _addressController,
+            label: "Address",
+            isEditing: _isEditing,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your address';
+              }
+              return null;
+            },
           ),
           Divider(),
           ListTile(
@@ -3547,18 +4158,49 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildEditableListTile({
+    required IconData icon,
+    required TextEditingController controller,
+    required String label,
+    required bool isEditing,
+    required String? Function(String?) validator,
+  }) {
+    return isEditing
+        ? TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(icon),
+              border: OutlineInputBorder(),
+              errorText: validator(controller.text) != null
+                  ? validator(controller.text)
+                  : null,
+            ),
+            validator: validator,
+          )
+        : ListTile(
+            leading: Icon(icon),
+            title: Text(controller.text),
+          );
+  }
+
   Widget _buildProfileActions(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: Size(double.infinity, 50),
+          if (!_isEditing)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+              ),
+              onPressed: () {
+                setState(() {
+                  _isEditing = true;
+                });
+              },
+              child: Text("Edit Profile"),
             ),
-            onPressed: () {},
-            child: Text("Edit Profile"),
-          ),
           SizedBox(height: 16),
           OutlinedButton(
             style: OutlinedButton.styleFrom(
@@ -3572,6 +4214,17 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    }
   }
 
   void _showLogoutConfirmation(BuildContext context) {
@@ -3589,12 +4242,22 @@ class ProfileScreen extends StatelessWidget {
             onPressed: () {
               // Perform logout
               Navigator.pop(context);
+              Navigator.pop(context); // Return to previous screen
             },
             child: Text("Logout", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    super.dispose();
   }
 }
 
